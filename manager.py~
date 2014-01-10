@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+
+class Manager():
+    def __init__(self):
+        import shelve
+        from fetcher import DatabaseManager
+        self.shelve_db = shelve.open('iiis-shelve')
+        self.mysql_db = DatabaseManager()
+
+    def __del__(self):
+        self.mysql_db.close_database()
+        self.shelve_db.close()
+
+    def lookup_in_key(self, dictionary, word):
+        ans = []
+        for key in dictionary:
+            if isinstance(key, str) and key.find(word) >= 0:
+                ans.append({key:dictionary[key]})
+        if ans:
+            ans.append(dictionary)
+        return ans
+        
+    def lookup_in_all(self, dictionary, word):
+        ans = []
+        for key in dictionary:
+            if isinstance(key, str) and key.find(word) >= 0:
+                ans.append({key : dictionary[key]})
+            if isinstance(dictionary[key], str) and dictionary[key].find(word) >= 0:
+                ans.append({key : dictionary[key]})
+        if ans:
+            ans.append(dictionary)
+        return ans
+
+    def lookup_recursive_list(self, list_, word):
+        ans = []
+        has_recursive = False
+        for item in list_:
+            if isinstance(item, str) and item.find(word) >= 0:
+                ans.append(item)
+            if isinstance(item, dict):
+                has_recursive = True
+                ans += self.lookup_recursive(item, word)
+            if isinstance(item, list):
+                has_recursive = True
+                ans += self.lookup_recursive_list(item, word)
+        if ans and not has_recursive:
+            ans += list_
+        return ans
+
+    def lookup_recursive(self, dictionary, word):
+        ans = []
+        has_recursive = False
+        for key in dictionary:
+            if isinstance(key, str) and key.find(word) >= 0:
+                ans.append({key: dictionary[key]})
+            if isinstance(dictionary[key], dict):
+                has_recursive = True
+                ans += self.lookup_recursive(dictionary[key], word)
+            if isinstance(dictionary[key], list):
+                has_recursive = True
+                ans += self.lookup_recursive_list(dictionary[key], word)
+            if isinstance(dictionary[key], str) and dictionary[key].find(word) >= 0:
+                ans.append({key : dictionary[key]})
+        if ans and not has_recursive:
+            ans.append(dictionary)
+        return ans
+
+    def query(self,word):
+        ans = []
+        ans = self.lookup_in_key(self.shelve_db['info'], word)
+        if ans:
+            print("looking up in info")
+            return ans
+        ans = self.lookup_in_key(self.shelve_db, word)
+        if ans:
+            print("look up in shelve_db")
+            return ans
+        self.mysql_db.connect_database()
+        ans = self.mysql_db.search(word)
+        self.mysql_db.close_database()
+        if ans:
+            print("after query in database")
+            return ans
+        ans = self.lookup_recursive(self.shelve_db, word)
+        if ans:
+            print("look up in shelve_db recursively")
+            return ans
+        self.mysql_db.connect_database()
+        ans_dict = self.mysql_db.deep_search(word)
+        self.mysql_db.close_database()
+        print("look up in mysql")
+        return [ans_dict]
+
+    
+    def add(self, word, content):
+        db['info'][word] = content
+        

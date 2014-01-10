@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+from urllib.request import urlopen
+import re
+from collections import deque
+from fetcher import DatabaseManager
+from bs4 import BeautifulSoup
+
+def push_queue(queue, names, url, text):
+    added = False
+    for i in range(len(queue)):
+        if queue[i] == url:
+            if names[i].count(text) == 0:
+                names[i].append(text)
+                added = True
+            break
+    if not added:
+        queue.append(url)
+        names.append([text])
+
+origin_url = "http://iiis.tsinghua.edu.cn/"
+max_count = 1000
+queue = deque()
+names = deque()
+dm = DatabaseManager()
+dm.connect_database()
+dm.create_webpage_database()
+dm.create_webpage_relation_database()
+queue.append(origin_url)
+names.append(["homepage"])
+
+remove_tail = re.compile(r"http://(.*)/([^/]*)")
+for count in range(max_count):
+    if count >= len(queue):
+        print("out of queue!")
+        break
+    print("count = ", count)
+    current_url = queue[count]
+    print("current_url = ", current_url)
+    current_location = remove_tail.sub(r'http://\1', current_url)
+    try:
+        request = urlopen(current_url, timeout = 2)
+        type_name = request.headers.get_content_maintype()
+        print(type_name)
+        if type_name in ("application", "audio"):
+            print("break with ", type_name)
+            continue
+        length = request.headers.get("Content-Length")
+        if length and length > 10000:
+            print("come in length")
+            continue
+        page = request.read()
+    except:
+        print("in exception")
+        continue
+    soup = BeautifulSoup(page)
+    dm.insert_webpage_data(current_url, soup.prettify, names[count])
+    
+    for link in soup.find_all("a"):
+        temp_url = link.get("href")
+        if temp_url == None:
+            continue
+        if temp_url.find("http://") < 0 and temp_url.find("https://") < 0:
+            temp_url = current_location + temp_url
+        if not temp_url[0:len(origin_url)] == origin_url:
+            continue
+        print("pushing url ", temp_url)
+        push_queue(queue, names, temp_url, link.getText())
+    

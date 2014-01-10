@@ -1,0 +1,19 @@
+{'tag':['课程','计算机入门','教师'],
+ '教师':'黄隆波'
+},
+{'tag':['课程','计算机应用数学','教师'],
+ '教师':'John Steinberger'
+}
+
+
+translate = {'课程名':'课程',
+             '课程':'课程',
+             'John':'John Steinberger',
+             'John Steinberger':'John Steinberger',
+             '萌约翰':'John Steinberger',
+             '约翰':'John Steinberger',
+             '计入门':'计算机入门',
+             '计算机入门':'计算机入门',
+             '计应数':'计算机应用数学',
+             '计算机应用数学':'计算机应用数学',
+             
